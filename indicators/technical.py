@@ -48,10 +48,10 @@ def calculate_macd(
 
     macd_result = ta.macd(df["close"], fast=fast, slow=slow, signal=signal)
 
-    # pandas-ta returns columns like MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
-    macd_col = f"MACD_{fast}_{slow}_{signal}"
-    hist_col = f"MACDh_{fast}_{slow}_{signal}"
-    signal_col = f"MACDs_{fast}_{slow}_{signal}"
+    # [SECURE] Dynamic column detection - column names vary by pandas-ta version (Category 5)
+    macd_col = [c for c in macd_result.columns if c.startswith("MACD_") or c.startswith("MACD") and "h" not in c.lower() and "s" not in c.lower()][0]
+    hist_col = [c for c in macd_result.columns if c.startswith("MACDh")][0]
+    signal_col = [c for c in macd_result.columns if c.startswith("MACDs")][0]
 
     return {
         "macd": macd_result[macd_col],
@@ -79,10 +79,10 @@ def calculate_bollinger_bands(
 
     bb_result = ta.bbands(df["close"], length=period, std=std_dev)
 
-    # pandas-ta returns columns like BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
-    lower_col = f"BBL_{period}_{std_dev}"
-    middle_col = f"BBM_{period}_{std_dev}"
-    upper_col = f"BBU_{period}_{std_dev}"
+    # [SECURE] Dynamic column detection - pandas-ta column names vary by version (Category 5)
+    upper_col = [c for c in bb_result.columns if c.startswith("BBU")][0]
+    middle_col = [c for c in bb_result.columns if c.startswith("BBM")][0]
+    lower_col = [c for c in bb_result.columns if c.startswith("BBL")][0]
 
     return {
         "upper": bb_result[upper_col],

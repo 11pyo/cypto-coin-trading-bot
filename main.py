@@ -294,9 +294,9 @@ def run_trading_loop(settings, exchange, strategy, risk_manager, logger, bot_sta
             _sleep(60)
             continue
         except Exception as e:
-            # [SECURE] Full trace to file only (Category 4)
-            logger.error("Unexpected error, see log file")
-            logger.debug("Error: %s", e, exc_info=True)
+            # [SECURE] Log full traceback to file for diagnosis (Category 4)
+            logger.error("Unexpected error: %s: %s", type(e).__name__, e)
+            logger.error("Traceback:", exc_info=True)
 
         _sleep(s.get("trading_interval_seconds", 300))
 

@@ -17,7 +17,8 @@ def setup_logger(log_level: str = "INFO", log_file: str = "trading_bot.log") -> 
         Configured logger instance.
     """
     logger = logging.getLogger("trading_bot")
-    logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+    # File handler needs DEBUG regardless of console level
+    logger.setLevel(logging.DEBUG)
 
     if logger.handlers:
         return logger
