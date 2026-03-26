@@ -1,0 +1,20 @@
+.env
+.env\ -\ *
+__pycache__/
+*.pyc
+*.log
+*.db
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.idea/
+.vscode/
+node_modules/
+docs/node_modules/
+docs/package.json
+docs/package-lock.json
+improvement_config.json
+simulation_*.py
+analysis_*.py
