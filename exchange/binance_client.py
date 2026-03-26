@@ -41,9 +41,10 @@ class BinanceExchange:
         })
         self._dry_run = dry_run
 
+        # DRY_RUN: use REAL Binance for market data (read-only), simulate orders
+        # Do NOT use sandbox/testnet (API keys are for live Binance)
         if dry_run:
-            self._exchange.set_sandbox_mode(True)
-            logger.info("Exchange initialized in SANDBOX/TESTNET mode")
+            logger.info("Exchange initialized in DRY RUN mode (real data, simulated orders)")
         else:
             logger.info("Exchange initialized in LIVE mode")
 
@@ -151,6 +152,13 @@ class BinanceExchange:
         Returns:
             Dict with 'free' and 'total' balances.
         """
+        if self._dry_run:
+            # [SECURE] DRY_RUN returns simulated balance (no API call needed)
+            sim_balances = {"USDT": 333.33, "ETH": 0.0}
+            bal = sim_balances.get(asset, 0.0)
+            logger.debug("[DRY RUN] Simulated balance for %s: %.2f", asset, bal)
+            return {"free": bal, "total": bal}
+
         balance = self._retry(self._exchange.fetch_balance)
         # [SECURE] Null check before access (Category 5)
         if balance is None or asset not in balance:

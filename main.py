@@ -70,8 +70,9 @@ def run_trading_loop(settings, exchange, strategy, risk_manager, logger, bot_sta
         base_balance = exchange.fetch_balance(settings.base_asset)
         current_price = exchange.fetch_ticker_price(ccxt_symbol)
         risk_manager.recover_state(base_balance["free"], current_price)
-    except ExchangeConnectionError as e:
-        logger.warning("Could not recover state: %s", e)
+    except Exception as e:
+        # [SECURE] Generic error - covers AuthenticationError on testnet (Category 4)
+        logger.warning("Could not recover state (may be normal in DRY_RUN): %s", type(e).__name__)
 
     # [SECURE] Main loop with shutdown flag (Category 3)
     while _running:
