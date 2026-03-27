@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>ETH Auto-Trading Bot</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -112,7 +115,9 @@
             <span class="text-sm font-semibold text-gray-300">ETH/USDT Price</span>
             <span id="chart-time" class="text-xs text-gray-500">-</span>
           </div>
-          <canvas id="priceChart" height="200"></canvas>
+          <div style="position:relative; height:280px; width:100%;">
+            <canvas id="priceChart"></canvas>
+          </div>
         </div>
 
         <!-- Indicators Row -->

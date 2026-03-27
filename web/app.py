@@ -32,7 +32,8 @@ def create_app(bot_state):
     # [SECURE] Secret key from env or generated (Category 2)
     app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", sec.token_hex(32))
 
-    socketio = SocketIO(app, async_mode="gevent", cors_allowed_origins=[])
+    # [SECURE] Use threading mode for compatibility with pywebview GUI (Category 3)
+    socketio = SocketIO(app, async_mode="threading", cors_allowed_origins=[])
 
     # --- Routes ---
 
@@ -44,7 +45,17 @@ def create_app(bot_state):
     @app.route("/api/state")
     def api_state():
         """Get current bot state snapshot."""
-        return jsonify(bot_state.get_snapshot())
+        try:
+            snap = bot_state.get_snapshot()
+            # [SECURE] Sanitize non-serializable values (Category 4)
+            import math
+            for k, v in snap.items():
+                if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    snap[k] = None
+            return jsonify(snap)
+        except Exception as e:
+            logger.error("api_state error: %s: %s", type(e).__name__, e)
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/trades")
     def api_trades():
@@ -100,7 +111,10 @@ def create_app(bot_state):
     @socketio.on("connect")
     def handle_connect():
         """Send current state on client connect."""
-        socketio.emit("cycle_update", bot_state.get_snapshot())
+        try:
+            socketio.emit("cycle_update", bot_state.get_snapshot())
+        except Exception:
+            pass
 
     # --- Error handlers ---
 

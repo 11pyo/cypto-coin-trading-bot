@@ -1,6 +1,7 @@
 // ETH Auto-Trading Bot Dashboard - Client-side Logic
 
-const socket = io();
+let socket;
+try { socket = io(); } catch(e) { socket = null; }
 
 // ===== Chart.js Setup =====
 const ctx = document.getElementById("priceChart").getContext("2d");
@@ -285,22 +286,31 @@ function addTradeRow(t) {
   tbody.prepend(tr);
 }
 
-// ===== SocketIO Events =====
-socket.on("connect", () => {
-  console.log("Connected to bot");
-  loadTrades();
-  loadStats();
-});
+// ===== SocketIO Events (optional, graceful fallback) =====
+if (socket) {
+  socket.on("connect", () => {
+    console.log("Connected to bot via WebSocket");
+    loadTrades();
+    loadStats();
+  });
+  socket.on("cycle_update", data => { updateDashboard(data); });
+  socket.on("trade_executed", trade => {
+    addTradeRow(trade);
+    loadStats();
+    showToast(`Trade: ${trade.side} @ $${trade.price.toFixed(2)}`);
+  });
+}
 
-socket.on("cycle_update", data => {
-  updateDashboard(data);
-});
-
-socket.on("trade_executed", trade => {
-  addTradeRow(trade);
-  loadStats();
-  showToast(`Trade: ${trade.side} @ $${trade.price.toFixed(2)}`);
-});
-
-// Initial fetch
-fetch("/api/state").then(r => r.json()).then(data => updateDashboard(data));
+// ===== HTTP Polling (primary data source) =====
+function pollState() {
+  fetch("/api/state")
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(data => { updateDashboard(data); })
+    .catch(() => {});
+}
+pollState();
+loadTrades();
+loadStats();
+setInterval(pollState, 3000);
+setInterval(loadTrades, 15000);
+setInterval(loadStats, 15000);

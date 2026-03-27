@@ -67,12 +67,19 @@ class BotState:
         # Mutable settings (UI can change these)
         self.settings: dict = {}
 
+    @staticmethod
+    def _to_native(value):
+        """Convert numpy types to Python native for JSON serialization."""
+        if hasattr(value, 'item'):  # numpy scalar
+            return value.item()
+        return value
+
     def update_indicators(self, **kwargs) -> None:
         """Update indicator values from trading loop."""
         with self._lock:
             for key, value in kwargs.items():
                 if hasattr(self, key):
-                    setattr(self, key, value)
+                    setattr(self, key, self._to_native(value))
             self.last_update_time = time.time()
             self.cycle_count += 1
 
@@ -80,7 +87,7 @@ class BotState:
             if "current_price" in kwargs and kwargs["current_price"] > 0:
                 self.price_history.append({
                     "time": time.time(),
-                    "price": kwargs["current_price"]
+                    "price": self._to_native(kwargs["current_price"])
                 })
                 # [SECURE] Bounded list (Category 3)
                 if len(self.price_history) > self._max_history:

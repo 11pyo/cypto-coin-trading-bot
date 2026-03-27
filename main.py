@@ -298,7 +298,28 @@ def run_trading_loop(settings, exchange, strategy, risk_manager, logger, bot_sta
             logger.error("Unexpected error: %s: %s", type(e).__name__, e)
             logger.error("Traceback:", exc_info=True)
 
-        _sleep(s.get("trading_interval_seconds", 300))
+        # Price ticker between full cycles (update every 10s)
+        interval = s.get("trading_interval_seconds", 300)
+        elapsed = 0
+        while elapsed < interval and _running:
+            time.sleep(10)
+            elapsed += 10
+            if not _running:
+                break
+            try:
+                tick_price = exchange.fetch_ticker_price(ccxt_symbol)
+                if tick_price and tick_price > 0:
+                    bot_state.update_indicators(current_price=tick_price)
+                    if risk_manager.has_position:
+                        pos = risk_manager.position
+                        avg = pos.avg_entry_price
+                        pnl_pct = ((tick_price - avg) / avg * 100) if avg > 0 else 0
+                        pnl_usdt = (tick_price - avg) * pos.total_quantity
+                        bot_state.update_position(
+                            True, pnl_pct=pnl_pct, pnl_usdt=pnl_usdt,
+                        )
+            except Exception:
+                pass
 
     bot_state.is_running = False
     logger.info("Trading Bot Stopped")
@@ -335,6 +356,13 @@ def _sleep(seconds):
         if not _running:
             break
         time.sleep(1)
+
+
+def _start_flask_server(app, socketio, logger):
+    """Run Flask-SocketIO in a background thread."""
+    # [SECURE] Bind to localhost only (Category 1 - no LAN exposure)
+    logger.info("Dashboard: http://127.0.0.1:5000")
+    socketio.run(app, host="127.0.0.1", port=5000, debug=False, use_reloader=False, log_output=False, allow_unsafe_werkzeug=True)
 
 
 def main():
@@ -396,11 +424,44 @@ def main():
     )
     trading_thread.start()
 
-    logger.info("Dashboard: http://127.0.0.1:5000")
+    # Flask server in daemon thread
+    flask_thread = threading.Thread(
+        target=_start_flask_server,
+        args=(app, socketio, logger),
+        daemon=True,
+    )
+    flask_thread.start()
 
-    # Flask-SocketIO in main thread (handles signals on Windows)
-    # [SECURE] Bind to localhost only (Category 1 - no LAN exposure)
-    socketio.run(app, host="127.0.0.1", port=5000, debug=False, use_reloader=False, log_output=False)
+    # Wait for Flask to start
+    import time as _time
+    _time.sleep(1.5)
+
+    # [SECURE] pywebview GUI as main thread (Category 6 - no debug code in production)
+    try:
+        import webview
+        mode_label = "DRY RUN" if settings.dry_run else "LIVE"
+        window = webview.create_window(
+            f"ETH Trading Bot [{mode_label}]",
+            "http://127.0.0.1:5000",
+            width=1440, height=920,
+            min_size=(1024, 700),
+            text_select=True,
+        )
+        webview.start()
+    except ImportError:
+        # Fallback: if pywebview not installed, open browser instead
+        import webbrowser
+        webbrowser.open("http://127.0.0.1:5000")
+        logger.info("pywebview not available, opened in browser. Press Ctrl+C to stop.")
+        try:
+            flask_thread.join()
+        except KeyboardInterrupt:
+            pass
+
+    # When GUI window closes, shut down everything
+    global _running
+    _running = False
+    logger.info("GUI closed, shutting down...")
 
 
 if __name__ == "__main__":
